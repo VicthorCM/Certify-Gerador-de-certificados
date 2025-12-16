@@ -5,6 +5,25 @@
 </head>
 <body class="container mt-5">
 
+     <nav class="navbar navbar-expand-lg navbar-light bg-light py-3">
+        <div class="container">
+            <a class="navbar-brand fw-bold text-primary" href="{%url 'home' %}">
+                <i class="bi bi-patch-check-fill me-2"></i>CertifyMe
+            </a>
+            
+            <div class="ms-auto">
+                {% if user.is_authenticated %}
+                    <span class="me-3 text-muted d-none d-md-inline">Olá, {{ user.username }}</span>
+                    <form action="{% url 'logout' %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Sair</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-primary btn-sm px-4 rounded-pill fw-bold">Área do Gestor (Login)</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
     <h2>Emissão em Lote</h2>
     
     {% if messages %}
@@ -27,7 +46,7 @@
 
     <div class="mt-4">
         <h5>Instruções:</h5>
-        <p>O arquivo Excel deve conter as colunas: <strong>Nome</strong> , <strong>Curso</strong> e <strong>Email</strong>.</p>
+        <p>O arquivo Excel deve conter as colunas: <strong>Nome</strong> , <strong>Curso</strong> , <strong>Email</strong>, <strong>Nome do responsável</strong> e seu <strong>cargo</strong> .</p>
     </div>
 
 </body>

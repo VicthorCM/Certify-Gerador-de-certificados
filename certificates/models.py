@@ -4,7 +4,8 @@ class Certificate(models.Model):
     student_name = models.CharField("Nome do Aluno", max_length=255)
     student_email = models.EmailField("E-mail do Aluno", blank=True, null=True)
     course_name = models.CharField("Nome do Curso", max_length=255)
-    
+    instructor_name = models.CharField("Nome do Instrutor", max_length=255, default=" ")
+    instructor_role = models.CharField("Cargo", max_length=255, default="Coordenador (a)")
 
     created_at = models.DateTimeField("Criado em", auto_now_add=True)
 

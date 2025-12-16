@@ -4,6 +4,8 @@ from django.shortcuts import get_object_or_404
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 import qrcode
 from .models import Certificate
 from django.shortcuts import render, redirect
@@ -11,7 +13,25 @@ import pandas as pd
 from .forms import UploadCertificatesForm
 from django.contrib import messages
 import zipfile
+from django.contrib.auth.decorators import login_required
+from core import settings
+import os
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from django.views.generic import CreateView
+from django.urls import reverse_lazy
 
+
+class CreateUser(CreateView):
+    model = User
+    form_class = UserCreationForm
+    template_name = "register.html"
+    success_url= reverse_lazy("home")
+
+def home(request):
+    return render(request,'home.html',{})
+
+@login_required(login_url='/login/')
 def generate_pdf(request, certificate_id):
     # 1. Busca os dados no banco (ou retorna erro 404 se não achar)
     certificate = get_object_or_404(Certificate, id=certificate_id)
@@ -24,56 +44,93 @@ def generate_pdf(request, certificate_id):
     return FileResponse(buffer, as_attachment=False, filename=f"certificado_{certificate.student_name}.pdf")
 
 def generate_pdf_bytes(certificate):
-    
     buffer = io.BytesIO()
-    # 3. Cria o objeto Canvas (a "tela" de pintura do PDF)
-    # landscape(A4) deixa a folha deitada
     pdf = canvas.Canvas(buffer, pagesize=landscape(A4))
-    largura, altura = landscape(A4)
+    largura, altura = landscape(A4) # A4 Paisagem: aprox 841 x 595 pontos
 
-    # --- DESENHANDO O CONTEÚDO ---
+    # --- 1. CONFIGURAÇÃO DE ASSETS (Caminhos) ---
+    # Idealmente, use settings.BASE_DIR para achar os arquivos
+    static_path = os.path.join(settings.BASE_DIR, 'static')
     
-    # Título
-    pdf.setFont("Helvetica-Bold", 30)
-    texto_titulo = "CERTIFICADO DE CONCLUSÃO"
-    # Lógica para centralizar: (Largura da Pág - Largura do Texto) / 2
-    largura_texto = pdf.stringWidth(texto_titulo, "Helvetica-Bold", 30)
-    pdf.drawString((largura - largura_texto) / 2, altura - 150, texto_titulo)
-    
-    # Texto Principal
-    pdf.setFont("Helvetica", 18)
-    texto_corpo = f"Certificamos que {certificate.student_name} concluiu o curso"
-    largura_texto = pdf.stringWidth(texto_corpo, "Helvetica", 18)
-    pdf.drawString((largura - largura_texto) / 2, altura - 250, texto_corpo)
-    
-    # Nome do Curso (Destaque)
-    pdf.setFont("Helvetica-Bold", 24)
-    texto_curso = certificate.course_name
-    largura_texto = pdf.stringWidth(texto_curso, "Helvetica-Bold", 24)
-    pdf.drawString((largura - largura_texto) / 2, altura - 290, texto_curso)
+    bg_path = os.path.join(static_path, 'img', 'certificado_bg.jpg')
+    font_path = os.path.join(static_path, 'fonts', 'GreatVibes-Regular.ttf')
 
-    # --- GERANDO O QR CODE ---
+    # --- 2. REGISTRANDO FONTE CUSTOMIZADA ---
+    # Só funciona se você tiver baixado o arquivo .ttf
+    try:
+        pdfmetrics.registerFont(TTFont('Cursiva', font_path))
+        fonte_nome = 'Cursiva'
+    except:
+        fonte_nome = 'Helvetica-Bold' # Fallback se não achar a fonte
+
+    # --- 3. DESENHANDO O FUNDO ---
+    # O fundo deve ser a PRIMEIRA coisa, para ficar atrás de tudo
+    try:
+        # width e height forçam a imagem a ocupar a página toda
+        pdf.drawImage(bg_path, 0, 0, width=largura, height=altura)
+    except:
+        pass # Se não achar a imagem, fica branco mesmo
+
+    # --- 4. TÍTULO E CORPO ---
     
-    # URL que o QR Code vai abrir (ajuste o domínio depois)
-    # Por enquanto usamos localhost
-    link_validacao = f"http://127.0.0.1:8000/validar/{certificate.uu_id}"
-    
-    qr = qrcode.make(link_validacao)
+    # Título (Centralizado)
+    pdf.setFont("Helvetica-Bold", 36)
+    pdf.setFillColorRGB(0.2, 0.2, 0.2) # Cinza escuro (mais elegante que preto puro)
+    titulo = "CERTIFICADO DE CONCLUSÃO"
+    w_titulo = pdf.stringWidth(titulo, "Helvetica-Bold", 36)
+    pdf.drawString((largura - w_titulo)/2, altura - 140, titulo)
+
+    # Texto introdutório
+    pdf.setFont("Helvetica", 14)
+    texto_intro = "Certificamos que, para os devidos fins, que"
+    w_intro = pdf.stringWidth(texto_intro, "Helvetica", 14)
+    pdf.drawString((largura - w_intro)/2, altura - 200, texto_intro)
+
+    # NOME DO ALUNO (O destaque visual)
+    pdf.setFont(fonte_nome, 60) # Fonte cursiva grande
+    nome = certificate.student_name
+    w_nome = pdf.stringWidth(nome, fonte_nome, 60)
+    pdf.drawString((largura - w_nome)/2, altura - 270, nome)
+
+    # Texto do Curso
+    pdf.setFont("Helvetica", 16)
+    texto_curso = f"Concluiu com êxito o curso de {certificate.course_name}"
+    w_curso = pdf.stringWidth(texto_curso, "Helvetica", 16)
+    pdf.drawString((largura - w_curso)/2, altura - 330, texto_curso)
+
+    # --- 5. ASSINATURA E CARGO (NOVO) ---
+    # Linha da assinatura
+    pdf.setLineWidth(1)
+    pdf.line(largura/2 - 100, 130, largura/2 + 100, 130) # Linha centralizada embaixo
+
+    # Nome do Instrutor
+    pdf.setFont("Helvetica-Bold", 12)
+    instrutor = certificate.instructor_name
+    w_instr = pdf.stringWidth(instrutor, "Helvetica-Bold", 12)
+    pdf.drawString((largura - w_instr)/2, 115, instrutor)
+
+    # Cargo
+    pdf.setFont("Helvetica", 10)
+    cargo = certificate.instructor_role
+    w_cargo = pdf.stringWidth(cargo, "Helvetica", 10)
+    pdf.setFillColorRGB(0.5, 0.5, 0.5) # Cinza mais claro
+    pdf.drawString((largura - w_cargo)/2, 100, cargo)
+
+    # --- 6. QR CODE E DATA ---
+    # Data no canto esquerdo
+    pdf.setFillColorRGB(0, 0, 0)
+    pdf.setFont("Helvetica", 10)
+    data_texto = f"Emitido em: {certificate.created_at.strftime('%d/%m/%Y')}"
+    pdf.drawString(50, 50, data_texto)
+
+    # QR Code no canto direito
+    link = f"http://127.0.0.1:8000/validar/{certificate.uu_id}"
+    qr = qrcode.make(link)
     qr_img = ImageReader(qr.get_image())
-    
-    # Desenha o QR Code no canto inferior direito
-    # drawImage(imagem, X, Y, largura, altura)
-    pdf.drawImage(qr_img, largura - 120, 30, width=80, height=80)
-    
-    # Texto explicativo embaixo do QR
-    pdf.setFont("Helvetica", 8)
-    pdf.drawString(largura - 120, 20, "Valide a autenticidade")
+    pdf.drawImage(qr_img, largura - 110, 40, width=70, height=70)
 
-    # Finaliza o PDF
     pdf.showPage()
     pdf.save()
-    
-    # Retorna o arquivo para download
     buffer.seek(0)
     return buffer.getvalue()
 
@@ -94,7 +151,7 @@ def validate(request, uu_id):
     return render(request, 'validate.html', context)
 
 
-
+@login_required(login_url='/login/')
 def upload(request):
     if request.method == 'POST':
        
@@ -150,3 +207,5 @@ def upload(request):
 
     
     return render(request, 'upload.html', {'form': form})
+
+
