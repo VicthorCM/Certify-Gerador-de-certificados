@@ -2,7 +2,7 @@ from .views import *
 from django.urls import path
 from django.contrib.auth import views as auth_views
 urlpatterns = [
-    path('home/',home,name='home'),
+    path('',home,name='home'),
     path('create/<int:certificate_id>', generate_pdf,name = "gerar_pdf" ),
     path('validar/<str:uu_id>',validate, name='validate_certificate'),
     path('upload/',upload,name='upload'),
