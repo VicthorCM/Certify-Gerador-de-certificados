@@ -1,4 +1,4 @@
-# 🎓 CertifyMe - Sistema Emissor e Validador de Certificados
+# 🎓 Certify - Sistema Emissor e Validador de Certificados
 
 Sistema desenvolvido em Django para automatizar a emissão de certificados corporativos/educacionais, com foco em segurança e performance.
 
@@ -15,7 +15,14 @@ Sistema desenvolvido em Django para automatizar a emissão de certificados corpo
 - **Frontend:** Django Templates + Bootstrap 5.
 
 ## 📸 Screenshots
-*( print da tela de upload e print do PDF gerado)*
+<img src="static/img/home.png" alt="home" width="400">
+<hr>
+<img src="static/img/upload.png" alt="upload" width="400">
+<hr>
+<img src="static/img/certificado.png" alt="certificado" width="400">
+<hr>
+<img src="static/img/validacao.png" alt="validação" width="400">
+<hr>
 
 ## ⚙️ Como rodar localmente
 1. Clone o repositório.
