@@ -124,7 +124,7 @@ def generate_pdf_bytes(certificate):
     pdf.drawString(50, 50, data_texto)
 
     # QR Code no canto direito
-    link = f"http://127.0.0.1:8000/validar/{certificate.uu_id}"
+    link = f"https://certify-gerador-de-certificados.onrender.com/validar/{certificate.uu_id}"
     qr = qrcode.make(link)
     qr_img = ImageReader(qr.get_image())
     pdf.drawImage(qr_img, largura - 110, 40, width=70, height=70)
